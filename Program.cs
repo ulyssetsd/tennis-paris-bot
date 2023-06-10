@@ -1,17 +1,38 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.CommandLine;
+using System.Text.RegularExpressions;
 using Microsoft.Playwright;
 
 namespace TennisParisBot;
 
-static class Program
+class Program
 {
-    static async Task Main(string email, string password)
+    static async Task<int> Main(string[] args)
+    {
+        var emailOption = new Option<string>(
+            name: "--email",
+            description: "Email connection for paris tennis."
+        );
+
+        var passwordOption = new Option<string>(
+            name: "--password",
+            description: "Password connection for paris tennis."
+        );
+
+        var rootCommand = new RootCommand("Run a bot that is gonna reserve an hour of tennis for you on tennis.paris.com")
+        {
+            emailOption,
+            passwordOption,
+        };
+
+        rootCommand.SetHandler(Run, emailOption, passwordOption);
+        return await rootCommand.InvokeAsync(args);
+    }
+
+    static async Task Run(string email, string password)
     {
         var tennisName = "Léo Lagrange";
         var dayOfWeek = "Monday";
         var hourOfDay = "13h";
-        //var email = "email@gmail.com";
-        //var password = "**********";
         var secondPlayerLastName = "Smith";
         var secondPlayerFirstName = "Will";
 
@@ -36,7 +57,7 @@ static class Program
 
         await page.GetByRole(AriaRole.Link, new PageGetByRoleOptions { Name = "accueil" }).ClickAsync();
         await page.Locator("#whereToken").GetByRole(AriaRole.Textbox).ClickAsync();
-        await page.Locator("#whereToken").GetByRole(AriaRole.Textbox).FillAsync(tennisName);
+        await page.Locator("#whereToken").GetByRole(AriaRole.Textbox).TypeAsync(tennisName);
         await page.GetByRole(AriaRole.Strong).Filter(new LocatorFilterOptions { HasTextRegex = new Regex($"^{tennisName}$") }).ClickAsync();
         await page.GetByPlaceholder("Sélectionnner une date").ClickAsync();
         await page.Locator("#search_form").GetByText(new Regex($"^{dayOfWeek}*.")).ClickAsync();
@@ -44,6 +65,7 @@ static class Program
         await page.GetByRole(AriaRole.Button, new PageGetByRoleOptions { Name = hourOfDay }).ClickAsync();
         await page.GetByRole(AriaRole.Button, new PageGetByRoleOptions { Name = "Réserver" }).First.ClickAsync();
 
+        // https://tennis.paris.fr/tennis/JCaptchaImage
         await page.FrameLocator("iframe[name=\"captchaImage\"]").GetByRole(AriaRole.Img).ClickAsync();
         await page.GetByLabel("* Enter the heard or read characters :").FillAsync("vqMYIO");
         await page.GetByRole(AriaRole.Button, new PageGetByRoleOptions { Name = "Poursuivre la réservation" }).ClickAsync();
